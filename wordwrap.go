@@ -12,7 +12,7 @@ import (
 // number of characters. Newlines are preserved, including consecutive and
 // trailing newlines, though trailing whitespace is stripped from each line.
 //
-// Clients should not assume Scanner is safe for parallel execution.
+// Clients should not assume Scanner is thread-safe.
 type Scanner struct {
 	r        io.RuneScanner
 	limit    int
