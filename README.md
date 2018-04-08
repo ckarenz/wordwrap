@@ -1,7 +1,7 @@
 # wordwrap
 
-[![GoDoc Reference](https://godoc.org/github.com/ckarenz/wordcount?status.svg)](http://godoc.org/github.com/ckarenz/wordcount)
-[![Build Status](https://travis-ci.org/ckarenz/wordcount.svg?branch=master)](https://travis-ci.org/ckarenz/wordcount)
+[![GoDoc Reference](https://godoc.org/github.com/ckarenz/wordwrap?status.svg)](http://godoc.org/github.com/ckarenz/wordwrap)
+[![Build Status](https://travis-ci.org/ckarenz/wordwrap.svg?branch=master)](https://travis-ci.org/ckarenz/wordwrap)
 
 A Go library for word-wrapping text.
 
