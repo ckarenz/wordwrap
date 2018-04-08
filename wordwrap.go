@@ -2,6 +2,7 @@
 package wordwrap
 
 import (
+	"bufio"
 	"bytes"
 	"io"
 	"strings"
@@ -31,11 +32,15 @@ type Scanner struct {
 	skipNextWS  bool // Skip non-newline whitespace if true.
 }
 
-// NewScanner creates and initializes a new Scanner using src as its source and
-// limit as the fixed line limit. The new Scanner takes ownershipof src, and the
-// caller should not use src after this call.
-func NewScanner(src io.RuneScanner, limit int) *Scanner {
-	return &Scanner{r: src, limit: limit, tabWidth: 4}
+// NewScanner creates and initializes a new Scanner given a reader and fixed
+// line limit. The new Scanner takes ownership of the reader, and the caller
+// should not use it after this call.
+func NewScanner(r io.Reader, limit int) *Scanner {
+	rs, ok := r.(io.RuneScanner)
+	if !ok {
+		rs = bufio.NewReader(r)
+	}
+	return &Scanner{r: rs, limit: limit, tabWidth: 4}
 }
 
 // SetPrefix sets a string to prefix each future line. The prefix is not applied
