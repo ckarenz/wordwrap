@@ -3,7 +3,6 @@ package wordwrap
 
 import (
 	"bufio"
-	"bytes"
 	"io"
 	"strings"
 	"unicode"
@@ -22,12 +21,9 @@ type Scanner struct {
 
 	// Scan state
 	err         error
-	line        bytes.Buffer
-	word        bytes.Buffer
-	space       bytes.Buffer
-	lineChars   int
-	wordChars   int
-	spaceChars  int
+	line        runeBuffer
+	word        runeBuffer
+	space       runeBuffer
 	needNewline bool
 	skipNextWS  bool // Skip non-newline whitespace if true.
 }
@@ -83,14 +79,13 @@ func (s *Scanner) ReadLine() (string, error) {
 		}
 
 		if unicode.IsSpace(char) {
-			if _, err := s.flushWord(&s.line); err != nil {
+			if _, err := s.flushWord(); err != nil {
 				s.err = err
 				return "", err
 			}
 
 			if char == '\n' {
 				ret := s.line.String()
-				s.lineChars = 0
 				s.skipNextWS = false
 				s.line.Reset()
 				s.space.Reset()
@@ -103,21 +98,20 @@ func (s *Scanner) ReadLine() (string, error) {
 
 			if char == '\t' {
 				// Replace tabs with spaces while preserving alignment.
-				count := s.tabWidth - s.lineChars%s.tabWidth
+				count := 0
+				if width := s.tabWidth; width != 0 {
+					count = width - s.line.Count()%width
+				}
 				s.space.WriteString(strings.Repeat(" ", count))
-				s.spaceChars += count
 			} else {
 				if _, err := s.space.WriteRune(char); err != nil {
 					s.err = err
 					return "", err
 				}
-				s.spaceChars++
 			}
 		} else {
 			s.word.WriteRune(char)
-			s.wordChars++
 			s.skipNextWS = false
-
 			if s.needNewline {
 				ret := s.line.String()
 				s.needNewline = false
@@ -127,7 +121,8 @@ func (s *Scanner) ReadLine() (string, error) {
 		}
 
 		// Commit the line if we've reached the maximum width.
-		if s.lineChars+s.wordChars+s.spaceChars >= s.limit {
+		if s.line.Count()+s.word.Count()+s.space.Count() >= s.limit {
+			//fmt.Println(s.lineChars, s.spaceChars, s.line.String()+s.space.String())
 			next, nextSize, err := peekRune(s.r)
 			if err != nil && err != io.EOF {
 				s.err = err
@@ -135,15 +130,14 @@ func (s *Scanner) ReadLine() (string, error) {
 			}
 
 			// Flush if the next character constitutes a word break.
-			if s.wordChars == s.limit || unicode.IsSpace(next) || nextSize == 0 {
-				if _, err := s.flushWord(&s.line); err != nil {
+			if s.word.Count() == s.limit || unicode.IsSpace(next) || nextSize == 0 {
+				if _, err := s.flushWord(); err != nil {
 					s.err = err
 					return "", err
 				}
 			}
 
-			s.lineChars = 0
-			if nextSize != 0 && next != '\n' && s.spaceChars < s.limit {
+			if nextSize != 0 && next != '\n' && s.space.Count() < s.limit {
 				// We had some non-whitespace chars, so start a new line for the next write.
 				s.needNewline = true
 			}
@@ -153,7 +147,7 @@ func (s *Scanner) ReadLine() (string, error) {
 		}
 	}
 
-	if _, err := s.flushWord(&s.line); err != nil {
+	if _, err := s.flushWord(); err != nil {
 		s.err = err
 		return "", err
 	}
@@ -195,31 +189,28 @@ func (s *Scanner) WriteTo(w io.Writer) (n int64, err error) {
 	}
 }
 
-func (s *Scanner) flushWord(w io.Writer) (int, error) {
+func (s *Scanner) flushWord() (int, error) {
 	var written int
-	if s.wordChars > 0 {
-		if s.lineChars == 0 {
-			n, err := io.WriteString(w, s.prefix)
+	if s.word.Count() > 0 {
+		if s.line.Count() == 0 {
+			n, err := s.line.WriteString(s.prefix)
 			written += n
 			if err != nil {
 				return written, err
 			}
 		}
 
-		n, err := s.space.WriteTo(w)
+		n, err := s.space.WriteTo(&s.line)
 		written += int(n)
 		if err != nil {
 			return written, err
 		}
 
-		n, err = s.word.WriteTo(w)
+		n, err = s.word.WriteTo(&s.line)
 		written += int(n)
 		if err != nil {
 			return written, err
 		}
-
-		s.lineChars += s.spaceChars + s.wordChars
-		s.spaceChars, s.wordChars = 0, 0
 	}
 	return written, nil
 }

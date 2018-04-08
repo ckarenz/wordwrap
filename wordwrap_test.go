@@ -11,10 +11,12 @@ import (
 )
 
 type testCase struct {
-	message  string
-	text     string
-	width    int
-	prefix   string
+	message string
+
+	text   string
+	width  int
+	prefix string
+
 	expected string
 }
 
@@ -229,4 +231,42 @@ func TestWriteTo(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestChangePrefix(t *testing.T) {
+	s := NewScanner(strings.NewReader("foo bar baz"), 4)
+
+	s.SetPrefix("--")
+	line, err := s.ReadLine()
+	require.NoError(t, err)
+	assert.Equal(t, "--foo", line)
+
+	s.SetPrefix("+++")
+	line, err = s.ReadLine()
+	require.NoError(t, err)
+	assert.Equal(t, "+++bar", line)
+
+	s.SetPrefix("")
+	line, err = s.ReadLine()
+	require.NoError(t, err)
+	assert.Equal(t, "baz", line)
+}
+
+func TestChangeTabWidth(t *testing.T) {
+	s := NewScanner(strings.NewReader("first\tline\tnext\tline\tlast\tline"), 13)
+
+	s.SetTabWidth(4)
+	line, err := s.ReadLine()
+	require.NoError(t, err)
+	assert.Equal(t, "first   line", line) // Before trim: "first   line    "
+
+	s.SetTabWidth(5)
+	line, err = s.ReadLine()
+	require.NoError(t, err)
+	assert.Equal(t, "next line", line) // Before trim: "next line "
+
+	s.SetTabWidth(0)
+	line, err = s.ReadLine()
+	require.NoError(t, err)
+	assert.Equal(t, "lastline", line)
 }
